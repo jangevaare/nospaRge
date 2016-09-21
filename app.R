@@ -65,8 +65,8 @@ server = function(input, output){
 		totalwater = preboilvol + input$deadloss2 + input$retention * grain
 		preboilgrav = 1 + ((input$ppg - 1) * (input$extracteff/100) * grain / totalwater)
 		OG = 1 + ((preboilgrav - 1) * preboilvol / postboilvol)
-		efficiency =  (preboilvol/totalwater) * (input$extracteff/100) * input$batchsize/postboilvol * (100/(100-shrinkage)) * 100
-		(((OG - 1) * input$batchsize) / ((input$ppg - 1) * grain)) * 100
+		maxOG = 1 + ((input$ppg - 1) * grain / input$batchsize)
+		efficiency = (OG - 1)/(maxOG - 1) * 100
 		data.frame(grain, efficiency, OG)
 	}
 	brewx = reactive(brewcalc())
