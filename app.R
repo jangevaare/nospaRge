@@ -11,14 +11,20 @@ ui = fluidPage(
 						max = 50,
 						value = 10,
 						step = 0.25),
-			sliderInput("deadloss1",
-						"Equipment loss from boil to fermentation (gallons)",
+			sliderInput("deadloss1a",
+						"Cool wort loss from boil to fermentation (gallons)",
 						min = 0,
 						max = 5,
-						value = 1,
+						value = 0,
+						step = 0.125),
+			sliderInput("deadloss1b",
+						"Hot wort loss from boil to fermentation (gallons)",
+						min = 0,
+						max = 5,
+						value = 0,
 						step = 0.125),
 			sliderInput("boiloff",
-						"Boil off rate (gallons/hour)",
+						"Boil off (gallons)",
 						min = 0,
 						max = 5,
 						value = 1,
@@ -27,31 +33,23 @@ ui = fluidPage(
 						"Equipment loss from mash to boil (gallons)",
 						min = 0,
 						max = 5,
-						value = 1,
+						value = 0,
 						step = 0.125),
 			sliderInput("retention",
 						"Grain absorption (gallons/pound)",
-						min = 0.1,
+						min = 0.05,
 						max = 0.15,
-						value = 0.125,
-						step = 0.005),
-			sliderInput("extracteff",
-						"Extraction efficiency (%)",
-						min = 70,
+						value = 0.100,
+						step = 0.01),
+			sliderInput("converteff",
+						"Conversion efficiency (%)",
+						min = 50,
 						max = 100,
 						value = 95,
-						step = 1),
-			sliderInput("ppg",
-						"Sugar content of grist (ppg)",
-						min = 1.030,
-						max = 1.040,
-						value = 1.035,
-						step = 0.001)
+						step = 1)
 			),	
 		mainPanel(
-			plotOutput("ogPlot", height="400px", width="600px"),
 			plotOutput("effPlot", height="400px", width="600px")
-			#dataTableOutput("brewdata")
 			)
 		)
 	)
@@ -60,29 +58,21 @@ server = function(input, output){
 	brewcalc = function(){
 		grain = seq(floor(0.5*input$batchsize), ceiling(4*input$batchsize))
 		shrinkage = 4
-		postboilvol = (input$batchsize + input$deadloss1) * (100/(100-shrinkage))
+		postboilvol = ((input$batchsize + input$deadloss1a) * (100/(100-shrinkage))) + input$deadloss1b
 		preboilvol = postboilvol + input$boiloff
-		totalwater = preboilvol + input$deadloss2 + input$retention * grain
-		preboilgrav = 1 + ((input$ppg - 1) * (input$extracteff/100) * grain / totalwater)
-		OG = 1 + ((preboilgrav - 1) * preboilvol / postboilvol)
-		maxOG = 1 + ((input$ppg - 1) * grain / input$batchsize)
-		efficiency = (OG - 1)/(maxOG - 1) * 100
-		data.frame(grain, efficiency, OG)
+		totalwater = preboilvol + input$deadloss2 + (input$retention * grain)
+		lauterefficiency = preboilvol / totalwater
+		mashefficiency = lauterefficiency*(input$converteff/100)
+		brewhouseefficiency = mashefficiency * ((input$batchsize * (100/(100-shrinkage))) / postboilvol)
+		data.frame(Grain=grain, Efficiency=brewhouseefficiency*100)
 	}
 	brewx = reactive(brewcalc())
-	output$ogPlot = renderPlot({
-		ggplot(brewx(), aes(x=grain, y=OG)) + 
-			geom_line(size=3) + 
-			labs(x="Total grain bill (lbs)", y="Original gravity") +
-			scale_y_continuous(limits = c(1.010, 1.090))
-	})
 	output$effPlot = renderPlot({
-		ggplot(brewx(), aes(x=grain, y=efficiency)) + 
+		ggplot(brewx(), aes(x=Grain, y=Efficiency)) + 
 			geom_line(size=3) + 
-			labs(x="Total grain bill (lbs)", y="Brewhouse Efficiency") +
-			scale_y_continuous(limits = c(50, 100))
+			labs(x="Total grain bill (lbs)", y="Brewhouse efficiency (%)") +
+			scale_y_continuous(limits = c(40, 100))
 	})
-	#output$brewdata = renderDataTable({brewx()})
 }
 
 shinyApp(ui, server)
