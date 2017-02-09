@@ -62,7 +62,7 @@ server = function(input, output){
 	brewcalc = function(){
 		t100density = 0.960
 		ppg = 1.030
-		grain = seq(floor(0.75*input$batchsize), ceiling(3*input$batchsize))
+		grain = seq(floor(0.75*input$batchsize), ceiling(2.5*input$batchsize))
 		totalsugar = (ppg - 1)*grain
 		postboilvol = ((input$batchsize + input$deadloss1a) * (1.000/t100density)) + input$deadloss1b
 		preboilvol = postboilvol + input$boiloff
@@ -81,7 +81,7 @@ server = function(input, output){
 			scale_y_continuous(limits = c(40, 100))
 	})
 	output$equation = renderText({
-		paste("Efficiency = ", round(brewlm()$coef[2], 4), " x Grain (lbs) + ", round(brewlm()$coef[1], 4))
+		paste("Efficiency = (", round(brewlm()$coef[2], 4), " x Grain) + ", round(brewlm()$coef[1], 4))
 	})
 
 }
