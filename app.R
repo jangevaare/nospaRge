@@ -1,3 +1,5 @@
+# Assumes 4% moisture content of grain
+
 library("shiny")
 library("ggplot2")
 
@@ -5,49 +7,54 @@ ui = fluidPage(
 	titlePanel("nospaRge: brewhouse efficiency calculator"),
 	sidebarLayout(
 		sidebarPanel(
-			sliderInput("batchsize",
+			numericInput("batchsize",
 						"Batch Size (gallons)",
 						min = 1,
-						max = 50,
+						max = 100,
 						value = 10,
 						step = 0.25),
-			sliderInput("deadloss1a",
+			numericInput("deadloss1a",
 						"Cool wort loss from boil to fermentation (gallons)",
 						min = 0,
-						max = 5,
+						max = 10,
 						value = 0,
 						step = 0.125),
-			sliderInput("deadloss1b",
+			numericInput("deadloss1b",
 						"Hot wort loss from boil to fermentation (gallons)",
 						min = 0,
 						max = 5,
 						value = 0,
 						step = 0.125),
-			sliderInput("boiloff",
+			numericInput("boiloff",
 						"Boil off (gallons)",
 						min = 0,
 						max = 5,
 						value = 1,
 						step = 0.125),
-			sliderInput("deadloss2",
+			numericInput("deadloss2",
 						"Equipment loss from mash to boil (gallons)",
 						min = 0,
 						max = 5,
 						value = 0,
 						step = 0.125),
-			sliderInput("retention",
-						"Grain absorption (gallons/pound)",
+			numericInput("retention",
+						"Apparent grain absorption (gallons/pound)",
 						min = 0.05,
 						max = 0.15,
 						value = 0.100,
 						step = 0.01),					
-			sliderInput("converteff",
-						"Conversion efficiency",
-						min = 0.50,
-						max = 1.00,
-						value = 0.95,
-						step = 0.01)
-					
+			numericInput("converteff",
+						"Conversion efficiency (%)",
+						min = 10,
+						max = 100,
+						value = 95,
+						step = 0.5),
+			numericInput("ppg",
+						"Grain potential (ppg)",
+						min = 20,
+						max = 40,
+						value = 36,
+						step = 0.5)	
 			),	
 		mainPanel(
 			plotOutput("effPlot", height="400px", width="600px"),
@@ -61,16 +68,16 @@ ui = fluidPage(
 server = function(input, output){
 	brewcalc = function(){
 		t100density = 0.960
-		ppg = 1.030
-		grain = seq(floor(0.75*input$batchsize), ceiling(2.5*input$batchsize))
-		totalsugar = (ppg - 1)*grain
-		postboilvol = ((input$batchsize + input$deadloss1a) * (1.000/t100density)) + input$deadloss1b
-		preboilvol = postboilvol + input$boiloff
-		totalwater = preboilvol + input$deadloss2 + (input$retention * grain)
-		preboilgrav = 1 + (totalsugar * input$converteff / totalwater)
-		postboilgrav = 1 + (preboilgrav - 1) * preboilvol/postboilvol
-		brewhouseefficiency = (postboilgrav - 1) * input$batchsize / totalsugar
-		data.frame(Grain=grain, Efficiency=brewhouseefficiency*100)
+		grainmoisture = 0.04
+		grain = seq(floor(0.75*input$batchsize), ceiling(3*input$batchsize))
+		drygrain = grain * (1-grainmoisture)
+		postboilvol = ((input$batchsize + input$deadloss1a) / t100density) + input$deadloss1b
+		preboilvol = postboilvol + (input$boiloff * t100density)
+		totalliquid = (preboilvol + input$deadloss2 + (input$retention*grain))*t100density + (drygrain*input$ppg*0.00160054653980182) + grain*grainmoisture/8.344
+		lauterefficiency = (preboilvol * t100density) / totalliquid
+		mashefficiency = input$converteff * lauterefficiency
+		brewhouseefficiency = mashefficiency * (input$batchsize / (postboilvol * 0.960))
+		data.frame(Grain=grain, Efficiency=brewhouseefficiency)
 	}
 	brewx = reactive(brewcalc())
 	brewlm = reactive(lm(Efficiency~Grain, data=brewx()))
